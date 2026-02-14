@@ -1,0 +1,26 @@
+name: Deploy Telegram Bot
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.SSH_USERNAME || 'root' }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.SSH_KEY }}
+          debug: true
+          script: |
+            cd /var/www/telegram_bot/
+            git stash
+            git pull origin main
+            git stash pop || true
+            python3 -m venv .venv 2>/dev/null || true
+            .venv/bin/pip install -r requirements.txt --quiet
+            sudo systemctl restart telegram-bot

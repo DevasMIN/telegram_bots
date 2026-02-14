@@ -1,0 +1,132 @@
+import re
+import os
+import logging
+from telegram import Update, MessageEntity
+from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.error import Conflict
+from dotenv import load_dotenv
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Не логировать HTTP-запросы — в них попадает токен
+logging.getLogger('telegram').setLevel(logging.WARNING)
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+
+load_dotenv()
+
+# Паттерн для ссылок Instagram (reel, p/, post и т.д.)
+INSTAGRAM_PATTERN = re.compile(
+    r'https?://(?:www\.)?instagram\.com/([^\s]+)',
+    re.IGNORECASE
+)
+
+
+def replace_instagram_links(text: str) -> str | None:
+    """Заменяет instagram.com на kkinstagram.com в тексте."""
+    if not text:
+        return None
+    match = INSTAGRAM_PATTERN.search(text)
+    if not match:
+        return None
+
+    replaced = INSTAGRAM_PATTERN.sub(
+        r'https://kkinstagram.com/\1',
+        text
+    )
+    return replaced if replaced != text else None
+
+
+def extract_urls_from_message(message) -> str:
+    """Собирает все URL из сообщения: text, caption, entities (text_link)."""
+    if not message:
+        return ''
+    parts = []
+    if message.text:
+        parts.append(message.text)
+    if message.caption:
+        parts.append(message.caption)
+    for entity in (message.entities or []):
+        if entity.type == MessageEntity.TEXT_LINK and entity.url:
+            parts.append(entity.url)
+    for entity in (message.caption_entities or []):
+        if entity.type == MessageEntity.TEXT_LINK and entity.url:
+            parts.append(entity.url)
+    return ' '.join(parts)
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает входящие сообщения и подменяет ссылки Instagram."""
+    if not update.message:
+        return
+
+    msg = update.message
+    chat_type = msg.chat.type if msg.chat else 'unknown'
+    logger.info('Получено сообщение: chat=%s type=%s', chat_type, type(msg.chat).__name__)
+
+    # Собираем текст из сообщения, caption, entities и ответа
+    text = extract_urls_from_message(msg)
+    if msg.reply_to_message:
+        text = text + ' ' + extract_urls_from_message(msg.reply_to_message)
+
+    text = text.strip()
+    logger.info('Извлечённый текст (первые 80 символов): %r', (text[:80] + '...') if len(text) > 80 else text)
+
+    replaced = replace_instagram_links(text)
+    if replaced:
+        logger.info('Найдена ссылка Instagram')
+        target = msg.reply_to_message if (msg.reply_to_message and replace_instagram_links(extract_urls_from_message(msg.reply_to_message))) else msg
+        sender = target.from_user
+        sender_name = sender.first_name or ''
+        if sender.last_name:
+            sender_name = f'{sender_name} {sender.last_name}'.strip()
+        if not sender_name and sender.username:
+            sender_name = f'@{sender.username}'
+        if not sender_name:
+            sender_name = 'Неизвестный'
+        text_with_header = f'От {sender_name}:\n{replaced}'
+        try:
+            await target.delete()
+            await context.bot.send_message(chat_id=msg.chat_id, text=text_with_header)
+        except Exception:
+            await msg.reply_text(text_with_header)
+    else:
+        logger.info('Ссылка Instagram не найдена')
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if isinstance(context.error, Conflict):
+        logger.error('Запущен другой экземпляр бота! Остановите все процессы bot.py и запустите заново.')
+        raise SystemExit(1)
+    logger.exception('Ошибка при обработке обновления')
+
+
+def main() -> None:
+    token = os.getenv('KKINSTAGRAM_BOT_TOKEN')
+    if not token:
+        raise ValueError('Установите KKINSTAGRAM_BOT_TOKEN в .env файле')
+
+    app = Application.builder().token(token).build()
+
+    # Логируем ВСЕ входящие апдейты, чтобы понять, получает ли бот что-то
+    async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if update.message:
+            t = (update.message.text or update.message.caption or '(пусто)')[:100]
+            logger.info('>>> Сообщение: chat_id=%s | %r', update.message.chat_id, t)
+
+    app.add_handler(MessageHandler(filters.ALL, log_all_updates), group=-1)
+    app.add_handler(
+        MessageHandler(
+            (filters.TEXT | filters.CAPTION) & ~filters.COMMAND,
+            handle_message
+        )
+    )
+    app.add_error_handler(error_handler)
+
+    logger.info('Бот запущен, ожидаю сообщения... (если в логах пусто — отключи /setprivacy в @BotFather)')
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+if __name__ == '__main__':
+    main()
