@@ -23,6 +23,15 @@ INSTAGRAM_PATTERN = re.compile(
 )
 
 
+def _get_sender_name(user) -> str:
+    if not user:
+        return 'Неизвестный'
+    name = user.first_name or ''
+    if user.last_name:
+        name = f'{name} {user.last_name}'.strip()
+    return name or (f'@{user.username}' if user.username else 'Неизвестный')
+
+
 def replace_instagram_links(text: str) -> str | None:
     """Заменяет instagram.com на kkinstagram.com в тексте."""
     if not text:
@@ -47,22 +56,12 @@ def extract_urls_from_message(message) -> str:
         parts.append(message.text)
     if message.caption:
         parts.append(message.caption)
-    for entity in (message.entities or []):
-        if entity.type == MessageEntity.TEXT_LINK and entity.url:
-            parts.append(entity.url)
-        elif entity.type == MessageEntity.URL:
-            try:
-                parts.append(message.parse_entity(entity))
-            except (IndexError, TypeError, ValueError):
-                pass
-    for entity in (message.caption_entities or []):
-        if entity.type == MessageEntity.TEXT_LINK and entity.url:
-            parts.append(entity.url)
-        elif entity.type == MessageEntity.URL:
-            try:
-                parts.append(message.parse_caption_entity(entity))
-            except (IndexError, TypeError, ValueError):
-                pass
+    for parsed in (message.parse_entities() or {}, message.parse_caption_entities() or {}):
+        for entity, text in parsed.items():
+            if entity.type == MessageEntity.TEXT_LINK and entity.url:
+                parts.append(entity.url)
+            elif entity.type == MessageEntity.URL:
+                parts.append(text)
     return ' '.join(parts)
 
 
@@ -72,36 +71,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     msg = update.message
-    chat_type = msg.chat.type if msg.chat else 'unknown'
-    logger.info('Сообщение: chat=%s chat_id=%s', chat_type, msg.chat_id)
 
-    # Собираем текст из сообщения, caption, entities и ответа
     text = extract_urls_from_message(msg)
     if msg.reply_to_message:
         text = text + ' ' + extract_urls_from_message(msg.reply_to_message)
 
     text = text.strip()
-    logger.info('Извлечённый текст: %r', (text[:100] + '...') if len(text) > 100 else text)
     replaced = replace_instagram_links(text)
     if replaced:
-        logger.info('Найдена ссылка Instagram')
         target = msg.reply_to_message if (msg.reply_to_message and replace_instagram_links(extract_urls_from_message(msg.reply_to_message))) else msg
-        sender = target.from_user
-        sender_name = sender.first_name or ''
-        if sender.last_name:
-            sender_name = f'{sender_name} {sender.last_name}'.strip()
-        if not sender_name and sender.username:
-            sender_name = f'@{sender.username}'
-        if not sender_name:
-            sender_name = 'Неизвестный'
-        text_with_header = f'От {sender_name}:\n{replaced}'
+        is_private = msg.chat and msg.chat.type == 'private'
+        text_with_header = replaced if is_private else f'От {_get_sender_name(target.from_user)}:\n{replaced}'
         try:
             await target.delete()
             await context.bot.send_message(chat_id=msg.chat_id, text=text_with_header)
         except Exception:
             await msg.reply_text(text_with_header)
-    else:
-        logger.info('Ссылка Instagram не найдена')
 
 
 HELP_TEXT = '''Я подменяю ссылки Instagram на kkinstagram.com.
@@ -135,13 +120,12 @@ def main() -> None:
 
     app = Application.builder().token(token).build()
 
-    async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def log_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.message:
-            chat_type = update.message.chat.type if update.message.chat else '?'
-            t = (update.message.text or update.message.caption or '(пусто)')[:100]
-            logger.info('>>> chat=%s chat_id=%s | %r', chat_type, update.message.chat_id, t)
+            t = (update.message.text or update.message.caption or '(пусто)')[:80]
+            logger.info('>>> %s | %r', update.message.chat.type, t)
 
-    app.add_handler(MessageHandler(filters.ALL, log_all_updates), group=-1)
+    app.add_handler(MessageHandler(filters.ALL, log_updates), group=-1)
     app.add_handler(CommandHandler('help', help_handler))
     app.add_handler(CommandHandler('start', help_handler))
     app.add_handler(MessageHandler(filters.ALL, handle_message))
