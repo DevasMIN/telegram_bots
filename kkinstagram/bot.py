@@ -39,7 +39,7 @@ def replace_instagram_links(text: str) -> str | None:
 
 
 def extract_urls_from_message(message) -> str:
-    """Собирает все URL из сообщения: text, caption, entities (text_link)."""
+    """Собирает все URL из сообщения: text, caption, entities (url, text_link)."""
     if not message:
         return ''
     parts = []
@@ -50,9 +50,19 @@ def extract_urls_from_message(message) -> str:
     for entity in (message.entities or []):
         if entity.type == MessageEntity.TEXT_LINK and entity.url:
             parts.append(entity.url)
+        elif entity.type == MessageEntity.URL and message.text:
+            try:
+                parts.append(message.text[entity.offset : entity.offset + entity.length])
+            except (IndexError, TypeError):
+                pass
     for entity in (message.caption_entities or []):
         if entity.type == MessageEntity.TEXT_LINK and entity.url:
             parts.append(entity.url)
+        elif entity.type == MessageEntity.URL and message.caption:
+            try:
+                parts.append(message.caption[entity.offset : entity.offset + entity.length])
+            except (IndexError, TypeError):
+                pass
     return ' '.join(parts)
 
 
@@ -119,12 +129,8 @@ def main() -> None:
 
     app.add_handler(CommandHandler('help', help_handler))
     app.add_handler(CommandHandler('start', help_handler))
-    app.add_handler(
-        MessageHandler(
-            (filters.TEXT | filters.CAPTION) & ~filters.COMMAND,
-            handle_message
-        )
-    )
+    # Обрабатываем все сообщения (в т.ч. личку, где ссылка может быть в entity)
+    app.add_handler(MessageHandler(filters.ALL, handle_message))
     app.add_error_handler(error_handler)
 
     logger.info('Бот запущен')
