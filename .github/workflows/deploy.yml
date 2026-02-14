@@ -17,9 +17,14 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           debug: true
           script: |
-            cd /var/www/telegram_bots/
-            git stash
-            git pull origin main
-            git stash pop || true
+            mkdir -p /var/www/telegram_bots
+            cd /var/www/telegram_bots
+            if [ ! -d .git ]; then
+              git clone https://github.com/DevasMIN/telegram_bots.git .
+            else
+              git stash
+              git pull origin main
+              git stash pop || true
+            fi
             echo "KKINSTAGRAM_BOT_TOKEN=${{ secrets.KKINSTAGRAM_BOT_TOKEN }}" > .env
             docker compose up -d --build
