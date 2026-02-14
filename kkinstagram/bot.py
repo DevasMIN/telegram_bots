@@ -112,6 +112,8 @@ https://www.instagram.com/reel/...
 Я отвечу заменой:
 https://kkinstagram.com/reel/...
 
+В личке: сначала нажми Start (или /start), затем отправь ссылку.
+
 В группах: добавь меня как админа с правом удаления — тогда я буду заменять сообщения. Без прав — просто отвечу.'''
 
 
@@ -135,8 +137,9 @@ def main() -> None:
 
     async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.message:
+            chat_type = update.message.chat.type if update.message.chat else '?'
             t = (update.message.text or update.message.caption or '(пусто)')[:100]
-            logger.info('>>> chat_id=%s | %r', update.message.chat_id, t)
+            logger.info('>>> chat=%s chat_id=%s | %r', chat_type, update.message.chat_id, t)
 
     app.add_handler(MessageHandler(filters.ALL, log_all_updates), group=-1)
     app.add_handler(CommandHandler('help', help_handler))
