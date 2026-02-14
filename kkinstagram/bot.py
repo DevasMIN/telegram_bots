@@ -2,7 +2,7 @@ import re
 import os
 import logging
 from telegram import Update, MessageEntity
-from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, CommandHandler, TypeHandler, filters, ContextTypes
 from telegram.error import Conflict
 from dotenv import load_dotenv
 
@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 logging.getLogger('telegram').setLevel(logging.WARNING)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
+
+
+async def _log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Логирует ВСЕ апдейты — для отладки."""
+    if update.message:
+        logger.info('UPDATE: message chat_id=%s', update.message.chat_id)
+    elif update.edited_message:
+        logger.info('UPDATE: edited_message chat_id=%s', update.edited_message.chat_id)
+    else:
+        logger.info('UPDATE: type=%s', type(update).__name__)
 
 load_dotenv()
 
@@ -125,13 +135,14 @@ def main() -> None:
             t = (update.message.text or update.message.caption or '(пусто)')[:80]
             logger.info('>>> %s | %r', update.message.chat.type, t)
 
+    app.add_handler(TypeHandler(Update, _log_all_updates), group=-2)
     app.add_handler(MessageHandler(filters.ALL, log_updates), group=-1)
     app.add_handler(CommandHandler('help', help_handler))
     app.add_handler(CommandHandler('start', help_handler))
     app.add_handler(MessageHandler(filters.ALL, handle_message))
     app.add_error_handler(error_handler)
 
-    logger.info('Бот запущен')
+    logger.info('Бот запущен, polling... (если UPDATE не появляются — проверь: 1) нет ли другого экземпляра 2) доступ к api.telegram.org)')
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
