@@ -1,37 +1,25 @@
-# Telegram Bot — замена ссылок Instagram
+# telegram_bots
 
-Бот отслеживает сообщения в чатах и автоматически подменяет ссылки Instagram на kkinstagram.com.
+Коллекция Telegram-ботов.
 
-**Пример:**
-- Входящее: `https://www.instagram.com/reel/DUGxOCBCJQG/?igsh=b2FlNDJjeTNmbGFw`
-- Ответ бота: `https://kkinstagram.com/reel/DUGxOCBCJQG/?igsh=b2FlNDJjeTNmbGFw`
+## Боты
 
-## Установка
+### KKInstagram (`kkinstagram/`)
 
+Подменяет ссылки Instagram на kkinstagram.com.
+
+- Отправь ссылку `https://www.instagram.com/reel/...` → получишь `https://kkinstagram.com/reel/...`
+- В группах с правами админа — заменяет сообщения; без прав — отвечает
+- Команды: `/help`, `/start`
+
+**Запуск:**
 ```bash
+cd kkinstagram
+cp .env.example .env  # добавить KKINSTAGRAM_BOT_TOKEN
 pip install -r requirements.txt
-```
-
-## Настройка
-
-1. Создайте бота через [@BotFather](https://t.me/BotFather) в Telegram
-2. Скопируйте `.env.example` в `.env`
-3. Укажите токен в `.env`:
-   ```
-   TELEGRAM_BOT_TOKEN=ваш_токен_от_BotFather
-   ```
-
-## Запуск
-
-```bash
 python bot.py
 ```
 
-## Добавление в группу
-
-1. **Отключи режим приватности** в @BotFather: `/setprivacy` → выбери бота → **Disable**. Иначе бот не будет получать сообщения в группах.
-2. Добавь бота в группу. С правами админа бот будет заменять сообщения; без прав — просто отвечать подменённой ссылкой.
-
 ## Деплой
 
-См. [deploy/README.md](deploy/README.md) — настройка сервера, systemd и GitHub Actions.
+См. [deploy/README.md](deploy/README.md)

@@ -4,16 +4,15 @@
 
 ```bash
 # Клонировать репозиторий
-sudo mkdir -p /var/www/telegram_bot
-sudo chown $USER:$USER /var/www/telegram_bot
-cd /var/www/telegram_bot
-git clone https://github.com/YOUR_USERNAME/telegram_bot.git .
+sudo mkdir -p /var/www/telegram_bots
+sudo chown $USER:$USER /var/www/telegram_bots
+cd /var/www/telegram_bots
+git clone https://github.com/DevasMIN/telegram_bots.git .
 
-# Создать .env с токеном (не коммитится в git!)
+# KKInstagram бот
+cd kkinstagram
 cp .env.example .env
 nano .env  # добавить KKINSTAGRAM_BOT_TOKEN=...
-
-# Установить зависимости
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
@@ -21,10 +20,10 @@ python3 -m venv .venv
 ## 2. Systemd
 
 ```bash
-sudo cp deploy/telegram-bot.service /etc/systemd/system/
+sudo cp deploy/telegram-bot-kkinstagram.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable telegram-bot
-sudo systemctl start telegram-bot
+sudo systemctl enable telegram-bot-kkinstagram
+sudo systemctl start telegram-bot-kkinstagram
 ```
 
 ## 3. GitHub Secrets

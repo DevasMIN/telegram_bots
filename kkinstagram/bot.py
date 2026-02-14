@@ -2,7 +2,7 @@ import re
 import os
 import logging
 from telegram import Update, MessageEntity
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from telegram.error import Conflict
 from dotenv import load_dotenv
 
@@ -95,6 +95,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info('Ссылка Instagram не найдена')
 
 
+HELP_TEXT = '''Я подменяю ссылки Instagram на kkinstagram.com.
+
+Отправь ссылку вида:
+https://www.instagram.com/reel/...
+
+Я отвечу заменой:
+https://kkinstagram.com/reel/...
+
+В группах: добавь меня как админа с правом удаления — тогда я буду заменять сообщения. Без прав — просто отвечу.'''
+
+
+async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(HELP_TEXT)
+
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     if isinstance(context.error, Conflict):
         logger.error('Запущен другой экземпляр бота! Остановите все процессы bot.py и запустите заново.')
@@ -116,6 +131,8 @@ def main() -> None:
             logger.info('>>> Сообщение: chat_id=%s | %r', update.message.chat_id, t)
 
     app.add_handler(MessageHandler(filters.ALL, log_all_updates), group=-1)
+    app.add_handler(CommandHandler('help', help_handler))
+    app.add_handler(CommandHandler('start', help_handler))
     app.add_handler(
         MessageHandler(
             (filters.TEXT | filters.CAPTION) & ~filters.COMMAND,

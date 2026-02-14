@@ -1,0 +1,15 @@
+[Unit]
+Description=KKInstagram Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/telegram_bots/kkinstagram
+EnvironmentFile=/var/www/telegram_bots/kkinstagram/.env
+ExecStart=/var/www/telegram_bots/kkinstagram/.venv/bin/python bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
