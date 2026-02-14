@@ -1,0 +1,6 @@
+services:
+  kkinstagram:
+    build: ./kkinstagram
+    restart: unless-stopped
+    environment:
+      - KKINSTAGRAM_BOT_TOKEN=${KKINSTAGRAM_BOT_TOKEN}

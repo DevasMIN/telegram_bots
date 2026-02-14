@@ -21,7 +21,5 @@ jobs:
             git stash
             git pull origin main
             git stash pop || true
-            cd kkinstagram
-            python3 -m venv .venv 2>/dev/null || true
-            .venv/bin/pip install -r requirements.txt --quiet
-            sudo systemctl restart telegram-bot-kkinstagram
+            echo "KKINSTAGRAM_BOT_TOKEN=${{ secrets.KKINSTAGRAM_BOT_TOKEN }}" > .env
+            docker compose up -d --build
