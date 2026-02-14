@@ -50,18 +50,18 @@ def extract_urls_from_message(message) -> str:
     for entity in (message.entities or []):
         if entity.type == MessageEntity.TEXT_LINK and entity.url:
             parts.append(entity.url)
-        elif entity.type == MessageEntity.URL and message.text:
+        elif entity.type == MessageEntity.URL:
             try:
-                parts.append(message.text[entity.offset : entity.offset + entity.length])
-            except (IndexError, TypeError):
+                parts.append(message.parse_entity(entity))
+            except (IndexError, TypeError, ValueError):
                 pass
     for entity in (message.caption_entities or []):
         if entity.type == MessageEntity.TEXT_LINK and entity.url:
             parts.append(entity.url)
-        elif entity.type == MessageEntity.URL and message.caption:
+        elif entity.type == MessageEntity.URL:
             try:
-                parts.append(message.caption[entity.offset : entity.offset + entity.length])
-            except (IndexError, TypeError):
+                parts.append(message.parse_caption_entity(entity))
+            except (IndexError, TypeError, ValueError):
                 pass
     return ' '.join(parts)
 
