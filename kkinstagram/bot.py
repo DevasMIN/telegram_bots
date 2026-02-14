@@ -62,8 +62,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     msg = update.message
-    chat_type = msg.chat.type if msg.chat else 'unknown'
-    logger.info('Получено сообщение: chat=%s type=%s', chat_type, type(msg.chat).__name__)
 
     # Собираем текст из сообщения, caption, entities и ответа
     text = extract_urls_from_message(msg)
@@ -71,11 +69,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         text = text + ' ' + extract_urls_from_message(msg.reply_to_message)
 
     text = text.strip()
-    logger.info('Извлечённый текст (первые 80 символов): %r', (text[:80] + '...') if len(text) > 80 else text)
-
     replaced = replace_instagram_links(text)
     if replaced:
-        logger.info('Найдена ссылка Instagram')
         target = msg.reply_to_message if (msg.reply_to_message and replace_instagram_links(extract_urls_from_message(msg.reply_to_message))) else msg
         sender = target.from_user
         sender_name = sender.first_name or ''
@@ -91,8 +86,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await context.bot.send_message(chat_id=msg.chat_id, text=text_with_header)
         except Exception:
             await msg.reply_text(text_with_header)
-    else:
-        logger.info('Ссылка Instagram не найдена')
 
 
 HELP_TEXT = '''Я подменяю ссылки Instagram на kkinstagram.com.
@@ -124,13 +117,6 @@ def main() -> None:
 
     app = Application.builder().token(token).build()
 
-    # Логируем ВСЕ входящие апдейты, чтобы понять, получает ли бот что-то
-    async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if update.message:
-            t = (update.message.text or update.message.caption or '(пусто)')[:100]
-            logger.info('>>> Сообщение: chat_id=%s | %r', update.message.chat_id, t)
-
-    app.add_handler(MessageHandler(filters.ALL, log_all_updates), group=-1)
     app.add_handler(CommandHandler('help', help_handler))
     app.add_handler(CommandHandler('start', help_handler))
     app.add_handler(
@@ -141,7 +127,7 @@ def main() -> None:
     )
     app.add_error_handler(error_handler)
 
-    logger.info('Бот запущен, ожидаю сообщения... (если в логах пусто — отключи /setprivacy в @BotFather)')
+    logger.info('Бот запущен')
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
