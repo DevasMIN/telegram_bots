@@ -72,6 +72,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     msg = update.message
+    chat_type = msg.chat.type if msg.chat else 'unknown'
+    logger.info('Сообщение: chat=%s chat_id=%s', chat_type, msg.chat_id)
 
     # Собираем текст из сообщения, caption, entities и ответа
     text = extract_urls_from_message(msg)
@@ -79,8 +81,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         text = text + ' ' + extract_urls_from_message(msg.reply_to_message)
 
     text = text.strip()
+    logger.info('Извлечённый текст: %r', (text[:100] + '...') if len(text) > 100 else text)
     replaced = replace_instagram_links(text)
     if replaced:
+        logger.info('Найдена ссылка Instagram')
         target = msg.reply_to_message if (msg.reply_to_message and replace_instagram_links(extract_urls_from_message(msg.reply_to_message))) else msg
         sender = target.from_user
         sender_name = sender.first_name or ''
@@ -96,6 +100,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await context.bot.send_message(chat_id=msg.chat_id, text=text_with_header)
         except Exception:
             await msg.reply_text(text_with_header)
+    else:
+        logger.info('Ссылка Instagram не найдена')
 
 
 HELP_TEXT = '''Я подменяю ссылки Instagram на kkinstagram.com.
@@ -127,9 +133,14 @@ def main() -> None:
 
     app = Application.builder().token(token).build()
 
+    async def log_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if update.message:
+            t = (update.message.text or update.message.caption or '(пусто)')[:100]
+            logger.info('>>> chat_id=%s | %r', update.message.chat_id, t)
+
+    app.add_handler(MessageHandler(filters.ALL, log_all_updates), group=-1)
     app.add_handler(CommandHandler('help', help_handler))
     app.add_handler(CommandHandler('start', help_handler))
-    # Обрабатываем все сообщения (в т.ч. личку, где ссылка может быть в entity)
     app.add_handler(MessageHandler(filters.ALL, handle_message))
     app.add_error_handler(error_handler)
 
