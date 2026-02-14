@@ -90,10 +90,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     text = text.strip()
     replaced = replace_instagram_links(text)
-    if replaced:
+    if not replaced:
+        return
+
+    is_private = msg.chat and msg.chat.type == 'private'
+
+    if is_private:
+        # В личке: просто отвечаем заменённой ссылкой
+        await msg.reply_text(replaced)
+    else:
+        # В группе: пытаемся удалить и отправить от имени бота
         target = msg.reply_to_message if (msg.reply_to_message and replace_instagram_links(extract_urls_from_message(msg.reply_to_message))) else msg
-        is_private = msg.chat and msg.chat.type == 'private'
-        text_with_header = replaced if is_private else f'От {_get_sender_name(target.from_user)}:\n{replaced}'
+        text_with_header = f'От {_get_sender_name(target.from_user)}:\n{replaced}'
         try:
             await target.delete()
             await context.bot.send_message(chat_id=msg.chat_id, text=text_with_header)
