@@ -58,20 +58,22 @@ def replace_instagram_links(text: str) -> str | None:
 
 
 def extract_urls_from_message(message) -> str:
-    """Собирает все URL из сообщения: text, caption, entities (url, text_link)."""
+    """Собирает все URL из сообщения: text, caption + скрытые URL из text_link."""
     if not message:
         return ''
     parts = []
+    # Берём text/caption — в них уже содержатся обычные URL
     if message.text:
         parts.append(message.text)
     if message.caption:
         parts.append(message.caption)
-    for parsed in (message.parse_entities() or {}, message.parse_caption_entities() or {}):
-        for entity, text in parsed.items():
-            if entity.type == MessageEntity.TEXT_LINK and entity.url:
-                parts.append(entity.url)
-            elif entity.type == MessageEntity.URL:
-                parts.append(text)
+    # Дополнительно: TEXT_LINK — ссылка скрыта за текстом, её нет в text/caption
+    for entity in (message.entities or []):
+        if entity.type == MessageEntity.TEXT_LINK and entity.url:
+            parts.append(entity.url)
+    for entity in (message.caption_entities or []):
+        if entity.type == MessageEntity.TEXT_LINK and entity.url:
+            parts.append(entity.url)
     return ' '.join(parts)
 
 
